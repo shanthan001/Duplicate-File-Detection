@@ -1,44 +1,47 @@
-import os
 import hashlib
 import PyPDF2
-import tkinter as tk
-from tkinter import filedialog, messagebox
+import difflib
+import os
 from tqdm import tqdm
 
-# Function to get the MD5 hash of a file
 def file_hash(filepath):
     with open(filepath, 'rb') as f:
         return hashlib.md5(f.read()).hexdigest()
 
-# Function to extract text from a PDF
 def extract_text_from_pdf(pdf_path):
     text = ""
     with open(pdf_path, 'rb') as file:
         reader = PyPDF2.PdfReader(file)
-        for page in reader.pages:
-            text += page.extract_text() if page.extract_text() else ""
+        for page_num in range(len(reader.pages)):
+            page = reader.getPage(page_num)
+            text += page.extract_text()
     return text
 
-# Function to return file hash or extracted text hash (for PDFs)
+def are_texts_similar(text1, text2, threshold=0.8):
+    return difflib.SequenceMatcher(None, text1, text2).ratio() > threshold
+
 def file_hash_or_text(filepath):
     try:
+        # Try to hash the file
         return file_hash(filepath)
     except:
+        # If hashing fails, extract text from PDF and hash the text
         if filepath.lower().endswith('.pdf'):
             text = extract_text_from_pdf(filepath)
             return hashlib.md5(text.encode()).hexdigest()
         else:
             raise ValueError("Unsupported file format")
 
-# Function to find duplicates from selected files
-def find_selected_duplicates(files):
+def find_duplicates(directory):
     hashes = {}
     duplicates = []
+    file_list = []
 
-    print(f"Processing {len(files)} selected files...\n")
+    for root, _, files in os.walk(directory):
+        for file in files:
+            file_list.append(os.path.join(root, file))
 
-    # Progress bar for processing
-    for filepath in tqdm(files, desc="Checking files", unit="file"):
+    for filepath in tqdm(file_list, desc="Processing files", unit="file"):
         try:
             filehash = file_hash_or_text(filepath)
             if filehash in hashes:
@@ -50,35 +53,16 @@ def find_selected_duplicates(files):
 
     return duplicates
 
-# Function to log duplicates to a file
 def log_duplicates_to_file(duplicates, log_file_path):
     with open(log_file_path, 'w') as log_file:
         for dup in duplicates:
             log_file.write(f"[{dup[0]}] is a duplicate of [{dup[1]}]\n")
 
-# GUI function for file selection
-def select_files():
-    root = tk.Tk()
-    root.withdraw()  # Hide the root window
-    files = filedialog.askopenfilenames(title="Select Files to Check for Duplicates")
-    
-    if not files:
-        messagebox.showinfo("No Files Selected", "Please select files to proceed.")
-        return
+# Example usage
+directory_path = r'\\fs10000\SHR-CS\ICM Payments\APPROVAL REQUIRED'
+log_file_path = r'C:\Users\SYANTHA2\OneDrive - Province of Nova Scotia\Desktop\duplicates_log.txt'
 
-    # Find duplicates
-    duplicates = find_selected_duplicates(files)
+duplicates = find_duplicates(directory_path)
+log_duplicates_to_file(duplicates, log_file_path)
 
-    # Log duplicates
-    log_file_path = r'C:\Users\SYANTHA2\OneDrive - Province of Nova Scotia\Desktop\duplicates_log.txt'
-    log_duplicates_to_file(duplicates, log_file_path)
-
-    # Show result
-    if duplicates:
-        messagebox.showinfo("Duplicate Check Completed", f"Duplicates found! Log saved at:\n{log_file_path}")
-    else:
-        messagebox.showinfo("No Duplicates", "No duplicate files found.")
-
-# Run GUI
-if __name__ == "__main__":
-    select_files()
+print(f"Duplicate files have been logged to {log_file_path}")
