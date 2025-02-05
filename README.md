@@ -63,8 +63,5 @@ Scans a directory and detects duplicate files based on hashes.
 ### `log_duplicates_to_file(duplicates, log_file_path)`
 Logs duplicate file names to a text file.
 
-## License
-This project is licensed under the MIT License.
-
 ## Author
 [Syanthan Vullingala](https://github.com/shanthan001)
